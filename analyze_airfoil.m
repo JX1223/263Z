@@ -4,9 +4,9 @@ clc;
 close all;
 fs = 14;
 %% Read geometry file to get x and y coordinates
-load("0012_199.mat"); af_name = "NACA 0012";
+%load("0012_199.mat"); af_name = "NACA 0012";
 %load("4412_199.mat"); af_name = "NACA 4412";
-%load("4515_199.mat"); af_name = "NACA 4515";
+load("4515_199.mat"); af_name = "NACA 4515";
 X = coords(:,1);
 Y = coords(:,2);
 
@@ -88,6 +88,7 @@ yyaxis left;
 plot(angles, CL_all, '-b', 'LineWidth', 1);
 hold on;
 plot(angles, CL_analytical, '--k', 'LineWidth', 1);
+%plot(angles, 2*pi*(deg2rad(angles) - a_L0), '.r', 'LineWidth', 1);
 scatter(rad2deg(a_L0),0,'o','filled','MarkerFaceColor','r');
 ylabel("C_L");
 hold off;
