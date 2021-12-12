@@ -1,26 +1,19 @@
-function blade3D(a, c)
-    %% Open file
+function blade3D(a, c, const)
+    % Colors
+    color_skin = [59, 126, 161]./255; % Founders rock
+    %color_skin = [0 50/255 98/255]; % Berkeley blue
+    color_section = [253/255, 181/255, 21/255]; % California gold
+
+    % Open file
     fID = fopen("airfoil.scad","w+");
     
-    %% Constants
-    % Air constants
-    rho = 1.225; % kg/m^3
-    % Problem constants
-    omega = 15 * (2*pi/60); % rpm -> rad/s
-    r_r = 1; % m, root radius
-    r_t = 10; % m, tip radius
-    mass = 115;
-    g = 9.81;
-    T_R = (mass * g)/(4); % N, thrust required per rotor
-    A_R = pi*r_t^2; % m^2, area of disk
-    V_h = sqrt(T_R/(2*rho*A_R)); % Hover induced velocity
     % Calculate radius
-    dr = (r_t - r_r)/(numel(a)); % Width of each blade element
-    r = linspace(r_r, r_t, numel(a)+1)'; 
+    dr = (const.r_t - const.r_r)/(numel(a)); % Width of each blade element
+    r = linspace(const.r_r, const.r_t, numel(a)+1)'; 
     r = r(1:end-1) + dr/2; % Distance to 'midpoint' of each blade element
     % Calculate angle phi
-    V_t = omega * r;
-    phi = atan(V_h./V_t);
+    V_t = const.omega * r;
+    phi = atan(const.V_h./V_t);
 
     % Convert angle of attack alpha to design angle beta
     beta = rad2deg(-1.*(a + phi));
@@ -42,8 +35,8 @@ function blade3D(a, c)
     view(3);
     hold on;
     xlabel("x");
-    ylabel("y");
-    zlabel("z");
+    ylabel("r [m]");
+    zlabel("y");
     t = matlab.graphics.primitive.Transform.empty(numel(a), 0);
     fprintf(fID, "airfoil = [");
     for i = 1:numel(a)
@@ -68,10 +61,13 @@ function blade3D(a, c)
         r_i = r(i);
         M = makehgtform("yrotate",pi,"xrotate",-pi/2,'translate',[0, 0, r_i]);
         t(i) = hgtransform('Matrix', M);
-        pg = plot(section, "Parent", t(i));
-        pg.FaceColor = 'w';
-        pg.FaceAlpha = 0;
-        pg.EdgeColor = 'k';
+        if i == 1 || mod(i, 5) == 0
+            pg = plot(section, "Parent", t(i));
+            pg.FaceColor = color_section;
+            pg.FaceAlpha = 0;
+            pg.EdgeColor = color_section;
+            pg.LineWidth = 1.5;
+        end
     end
     fprintf(fID,"];");
     fclose(fID);
@@ -79,17 +75,18 @@ function blade3D(a, c)
     status = system("/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD -q -o blade.stl generate_airfoil.scad");
     % Import stl mesh
     blade_TR = stlread('blade.stl');
-    p = trimesh(blade_TR,'FaceColor','r','EdgeColor','none','FaceAlpha',0.2);
+    p = trimesh(blade_TR,'FaceColor',color_skin,'EdgeColor','none','FaceAlpha',0.4);
     rotate(p,[1 0 0], -90, [0, 0, 0]);
     rotate(p,[0 1 0], 180, [0, 0, 0]);
-    %v = get(p, 'vertices');
+    v = get(p, 'vertices');
     %v(:,1) = v(:,1) + 0;
     %set(p,'vertices',v);
     %ylim([0, 10]);
     axis equal;
-    xlim([-2, 1]);
+    xlim([min(v(:,1)), max(v(:,1))]);
+    ylim([1, 10]);
     grid on;
     hold off;
-    campos([-24.8779   50.8778   15.0077]);
-
+    %view([45 - 180, 45]);
+    view([-155, 16]);
 end

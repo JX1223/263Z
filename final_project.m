@@ -1,112 +1,174 @@
-%
+%% Initialize
 clear;
 clc;
 close all;
+rng(12);
+%% Get Constants
+const = Constants;
 
-%% Inputs
-% Constants
-% Air constants
-rho = 1.225; % kg/m^3
-nu = 1.467*10^(-5);
-% Problem constants
-omega = 15 * (2*pi/60); % rpm -> rad/s
-r_r = 1; % m, root radius
-r_t = 10; % m, tip radius
-a_L0 = -0.08; % rad, zero lift angle, from vortex panel
-a_stall = deg2rad(8.473318733082900); % rad, stall angle, from vortex panel
-mass = 115;
-g = 9.81;
-T_R = (mass * g)/(4); % N, thrust required per rotor
-T_B = T_R / 2; % Thrust required per blade
-A_R = pi*r_t^2; % m^2, area of disk
-V_h = sqrt(T_R/(2*rho*A_R)); % Hover induced velocity
-
-% Adjustable parameters
-m = 101; % number of blade elements + 1
+%% Adjustable parameters
+m = 100; % number of blade elements
+fs = 14;
 
 %% Calculated values
 % Calculate radius
-dr = (r_t - r_r)/(m-1); % Width of each blade element
-r = linspace(r_r, r_t, m)'; 
+dr = (const.r_t - const.r_r)/(m); % Width of each blade element
+r = linspace(const.r_r, const.r_t, m+1)'; 
 r = r(1:end-1) + dr/2; % Distance to 'midpoint' of each blade element
 
 % Calculate relative velocities and angles
-V_t = omega * r;
-V_r = sqrt(V_t.^2 + V_h^2);
-phi = atan(V_h./V_t);
+V_t = const.omega * r;
+V_r = sqrt(V_t.^2 + const.V_h^2);
+phi = atan(const.V_h./V_t);
 
-% Calculate constants used in dQ, dT
-dQC = (1/2)*rho.*V_r.^2 .* r .* dr;
-dTC = (1/2)*rho.*V_r.^2 .* dr .* cos(phi);
+% Calculate dynamic pressure q
+q = (1/2)*const.rho.*V_r.^2;
 
-%% Solve optimization problem
+%% Optimize for angle of attack, alpha
+% Define an arbitrary chord function
+%c_func = @(x) ((0.8 - 2.5)/9).*x + (2.5 - (0.8 - 2.5)/9);
+%c_func = @(x) ((0.5 - 1.5)/9).*x + (1.5 - (0.5 - 1.5)/9);
+c_func = @(x) exp(-(2).*(x - 1)) + 0.5;
+c = c_func(r);
+
+% Get local drag coefficients
+c_f = drag_coeffs(V_r, c, const);
+
 % Define problem and variables
 prob = optimproblem("ObjectiveSense","minimize");
-a = optimvar('a', m-1, 'LowerBound', a_L0, 'UpperBound', a_stall - deg2rad(1)); % Optimization variable for angle of attack
-coeffs = optimvar('coeffs', 5); % 5 for cubic, 4 for exponential
-
-c_func = @(x) coeffs(1)*(x - coeffs(5)).^3 + coeffs(2)*(x - coeffs(5)).^2 + coeffs(3)*(x - coeffs(5)) + coeffs(4);
-%c_func = @(x) coeffs(1)*exp(coeffs(2)*(x - coeffs(4))) + coeffs(3);
-
-%c_ub = @(x) ((0.8 - 2.5)/9 * x) + (2.5 - (0.8 - 2.5)/9);
-%c_lb = @(x) ((0.5 - 1.5)/9 * x) + (1.5 - (0.5 - 1.5)/9);
-%c_ub = 2.5*ones(size(r)); c_ub(end) = 0.8;
-%c_lb = 0.5*ones(size(r)); c_lb(1) = 1.5;
-%c = optimvar('c', m-1, 'LowerBound', c_lb, 'UpperBound', c_ub); % Optimization variable for chord length
+order_a = 2; % Should be <= 3
+afs = optimvar('afs', order_a + 1);
+w_bending = 10;
+a_func = @(x) build_polynomial(afs, x);
 
 % Define objective function
 expr = optimexpr;
-for i = 1:m-1
-    C_L = 2*pi*(a(i) - a_L0); % Sectional coefficient of lift
-    c = c_func(r(i));
-    Re_L = (V_r(i) * c)/nu; % Reynolds number w.r.t. chord
-    C_f = 1.33/sqrt(Re_L); % Avg. skin friction coefficient, laminar
-    dQ = ((C_L * sin(phi(i)) + 2*C_f)*c*dQC(i)); % Torque per element
-    expr = expr + dQ;
+for i = 1:m
+    c_l = 2*pi*(a_func(r(i)) - const.a_L0); % Sectional coefficient of lift
+    c_n = c_l .* cos(phi(i)); % Sectional coefficient of force, normal
+    c_t = c_l .* sin(phi(i)); % Sectional coefficient of force, tangential
+    C_T = c_t .* dr; % Coefficient of force, tangential
+    C_N = c_n .* dr; % Coefficient of force, normal
+    D = C_T .* q(i) .* c(i); % Induced drag
+    c_t_visc = 2 * c_f(i) .* cos(phi(i)); % Sectional coeff of visc force, tan
+    C_T_visc = c_t_visc .* dr; % Coefficient of viscous force, tangential
+    D_visc = (C_T_visc .* q(i) .* c(i)); % Drag due to viscous force
+    dQ = (D + D_visc).* r(i);
+    T = C_N .* q(i) .* c(i);
+    dM_bending = T .* r(i);
+    
+    expr = expr + dQ + (w_bending * dM_bending);
 end
 prob.Objective = expr;
 
 % Define Thrust constraint
-constr1 = sum(2*pi*(a - a_L0) .* c_func(r) .* dTC) == T_B;
+constr1 = sum(2*pi*(a_func(r) - const.a_L0) .* cos(phi) .* q .* c .* dr) >= const.T_B;
 prob.Constraints.constr1 = constr1;
 
-% Define chord constraint
-constr2 = c_func(r) <= 2.5;
-constr3 = c_func(1) >= 1.5;
-constr4 = c_func(10) <= 0.8;
-constr5 = c_func(r) >= 0.5;
+% Define angle of attack constraints
+constr2 = a_func(r) >= const.a_L0;
+constr3 = a_func(r) <= const.a_stall - deg2rad(1);
+constr4 = a_func(1) >= const.a_L0;
+constr5 = a_func(1) <= const.a_stall - deg2rad(1);
+constr6 = a_func(10) >= const.a_L0;
+constr7 = a_func(10) <= const.a_stall - deg2rad(1);
 prob.Constraints.constr2 = constr2;
 prob.Constraints.constr3 = constr3;
 prob.Constraints.constr4 = constr4;
 prob.Constraints.constr5 = constr5;
+prob.Constraints.constr6 = constr6;
+prob.Constraints.constr7 = constr7;
 
-% Define initial solution
-
-m = (0.15 - 0.5)/9;
-y = @(x) m*x + 0.539;
-
-%x0.a = y(ones(size(a)));
-x0.a = 0.05*ones(size(a));
-x0.coeffs = ones(size(coeffs));
-%x0.coeffs(2) = 0
-%x0.c = ones(size(c));
+% Define initial solution 
+clear('x0');
+x0.afs = rand(size(afs));
 
 % Solve problem
-if max(size(gcp)) == 0 % parallel pool needed
-    parpool % create the parallel pool
+options = optimoptions('fmincon','Display','final-detailed', 'ConstraintTolerance',1e-10);
+[sol,fval,EXITFLAG,OUTPUT,LAMBDA] = solve(prob, x0,'Solver','fmincon','Options',options);
+a_func = @(x) build_polynomial(sol.afs, x);
+
+%% Analyze results
+a = a_func(r);
+analyze_blade(a, c, c_f, const, fs);
+
+%% Plot
+r_plot = linspace(1, 10, 101);
+V_t_plot = const.omega * r_plot;
+phi_plot = atan(const.V_h./V_t_plot);
+
+% Plot angle of attack
+f1 = figure;
+f1.Position = [100   300   1000   400];
+tl1 = tiledlayout(1,2,'Padding','compact');
+nexttile;
+plot(r_plot, rad2deg(a_func(r_plot)), 'LineWidth', 1);
+hold on;
+plot(r_plot, rad2deg(const.a_stall)*ones(size(r_plot)), '--r', 'LineWidth', 1)
+plot(r_plot, rad2deg(const.a_L0)*ones(size(r_plot)), '-.b', 'LineWidth', 1)
+legend("\alpha","\alpha_{stall}","\alpha_{L0}",'Location','east','FontSize', fs);
+hold off;
+ylabel("\alpha",'FontSize', fs)
+xlabel("Blade Radius [m]", 'FontSize', fs)
+ylim([-5, 9]);
+xlim([0, 10]);
+
+yticks(-5:1:9);
+yt=get(gca,'ytick');
+yt1 = cell(numel(yt),1);
+for k=1:numel(yt)
+yt1{k}=sprintf('%d°',yt(k));
 end
-options = optimoptions('fmincon','UseParallel',true);
-[sol, fval] = solve(prob, x0, 'Options',options);
+set(gca,'yticklabel',yt1);
 
-%% Plot result
-figure;
-plot(r, sol.a);
-title("Angle of Attack");
+grid on;
+title("Angle of Attack \alpha", 'FontSize', fs);
 
-coeffs = sol.coeffs;
-c_func = @(x) coeffs(1)*(x - coeffs(5)).^3 + coeffs(2)*(x - coeffs(5)).^2 + coeffs(3)*(x - coeffs(5)) + coeffs(4);
-%c_func = @(x) coeffs(1)*exp(coeffs(2)*(x - coeffs(4))) + coeffs(3);
-c = c_func(r);
-figure;
-plot(r, c);
-title("Chord");
+% Plot section angle
+nexttile;
+plot(r_plot, rad2deg(a_func(r_plot) + phi_plot), 'LineWidth', 1);
+hold on;
+plot(r_plot, rad2deg(phi_plot), '--r', 'LineWidth', 1);
+hold off;
+legend("\beta","\phi", 'location','east', 'FontSize', fs);
+ylabel("\beta, \phi",'FontSize', fs)
+xlabel("Blade Radius [m]", 'FontSize', fs)
+ylim([-5, 25]);
+xlim([0, 10]);
+
+yt=get(gca,'ytick');
+yt1 = cell(numel(yt),1);
+for k=1:numel(yt)
+yt1{k}=sprintf('%d°',yt(k));
+end
+set(gca,'yticklabel',yt1);
+
+grid on;
+title("Section Angle \beta and Induced Angle \phi", 'FontSize', fs);
+
+% Plot chord variation
+f2 = figure;
+f2.Position = [100   300   500   400];
+plot(r_plot, c_func(r_plot), 'LineWidth', 1);
+grid on;
+ylabel("c [m]");
+xlim([0, 10]);
+xlabel("Blade Radius [m]", 'FontSize', fs)
+title("Chord",'FontSize', fs);
+
+blade3D(a, c, const);
+
+function output = build_polynomial(coeffs, x)
+    output = 0;
+    order = numel(coeffs) - 1;
+    for i = 0:order
+        output = output + coeffs(i+1)*x.^i;
+    end
+end
+
+function c_f = drag_coeffs(V_r, c, const)
+    Re_L = (V_r .* c)./const.nu;
+    c_f = zeros(size(c));
+    c_f(Re_L <= 5 * 10^5) = 1.328 .* Re_L(Re_L <= 5*10^5).^(-1/2);
+    c_f(Re_L > 5 * 10^5) = 0.074 .* Re_L(Re_L > 5 * 10^5).^(-1/5); 
+end
