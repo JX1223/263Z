@@ -72,7 +72,13 @@ function blade3D(a, c, const)
     fprintf(fID,"];");
     fclose(fID);
     % Generate stl file
-    status = system("/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD -q -o blade.stl generate_airfoil.scad");
+    
+    if ismac
+        status = system("/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD -q -o blade.stl generate_airfoil.scad");
+    elseif ispc
+        cmd = sprintf("cd C:\\Program Files\\OpenSCAD\\ & openscad -q -o %s\\blade.stl %s\\generate_airfoil.scad", pwd, pwd);
+        status = system(cmd);
+    end
     % Import stl mesh
     blade_TR = stlread('blade.stl');
     p = trimesh(blade_TR,'FaceColor',color_skin,'EdgeColor','none','FaceAlpha',0.4);
