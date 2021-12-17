@@ -2,7 +2,8 @@
 clear;
 clc;
 close all;
-fs = 14;
+fs = 16;
+fp = ['.' filesep 'figures' filesep];
 %% Read geometry file to get x and y coordinates
 %load("0012_199.mat"); af_name = "NACA 0012";
 %load("4412_199.mat"); af_name = "NACA 4412";
@@ -55,12 +56,13 @@ for a = 1:numel(angles)
     CD_all(a) = CDCL(1); % Store coefficient of drag
     CL_all(a) = CDCL(2); % Store coefficient of lift
 end
-legend();
+legend('FontSize', fs);
 set(gca, 'YDir','reverse')
-xlabel("x/c");
-ylabel("\DeltaC_p")
+xlabel("x/c",'FontSize', fs);
+ylabel("\DeltaC_p",'FontSize', fs)
 grid on;
 title("Pressure Distribution", 'FontSize', fs);
+set(gca,'FontSize',fs)
 hold off;
 
 %% Plot CL and CD
@@ -90,22 +92,23 @@ hold on;
 plot(angles, CL_analytical, '--k', 'LineWidth', 1);
 %plot(angles, 2*pi*(deg2rad(angles) - a_L0), '.r', 'LineWidth', 1);
 scatter(rad2deg(a_L0),0,'o','filled','MarkerFaceColor','r');
-ylabel("C_L");
+ylabel("C_L", 'FontSize', fs);
 hold off;
 
 yyaxis right;
 plot(angles, CD_all, '-r', 'LineWidth', 1);
-ylabel("C_D");
-legend("C_L","Analytical",sprintf("\\alpha_{L0} = %0.3f\\circ",rad2deg(a_L0)),"C_D",'location','southeast');
+ylabel("C_D", 'FontSize', fs);
+legend("C_L","Analytical",sprintf("\\alpha_{L0} = %0.3f\\circ",rad2deg(a_L0)),"C_D",'location','southeast','FontSize', fs);
 ylim([-0.0125, 0.0125])
 grid on;
-xlabel("\alpha");
+xlabel("\alpha",'FontSize', fs);
 % Set tick marks to degree symbol
 xt=get(gca,'xtick');
 for k=1:numel(xt)
 xt1{k}=sprintf('%d°',xt(k));
 end
 set(gca,'xticklabel',xt1);
+set(gca,'FontSize',fs)
 title("C_L & C_D vs \alpha", 'FontSize', fs);
 hold off;
 
@@ -123,19 +126,20 @@ hold on;
 scatter(stall_angle,0.2,'o', 'filled','MarkerFaceColor', 'r');
 grid on;
 title("Upper Separation", 'FontSize', fs);
-ylabel("x_{s,u}/c");
-xlabel("\alpha");
+ylabel("x_{s,u}/c", 'FontSize', fs);
+xlabel("\alpha", 'FontSize', fs);
 % Set tick marks to degree symbol
 xt=get(gca,'xtick');
 for k=1:numel(xt)
 xt1{k}=sprintf('%d°',xt(k));
 end
 set(gca,'xticklabel',xt1);
-legend("Separation Dist (Normalized)", sprintf("Approx. Stall Angle: %.2f\\circ", stall_angle));
+set(gca,'FontSize',fs)
+legend("Separation Dist.", sprintf("Stall Angle: %.2f\\circ", stall_angle), 'FontSize', fs);
 hold off;
 
 title(tl, af_name, 'FontSize', fs)
-%exportgraphics(f1, sprintf("%s.eps", af_name));
+exportgraphics(f1, strcat(fp,sprintf("4515.eps")));
 
 %%  Fit C_L(alpha)
 coeffs = polyfit(deg2rad(angles), CL_all,1); % Linear fit of C_L to alpha

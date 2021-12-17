@@ -3,12 +3,14 @@ clear;
 clc;
 close all;
 rng(12);
+
 %% Get Constants
 const = Constants;
 
 %% Adjustable parameters
 m = 100; % number of blade elements
-fs = 14;
+fs = 16;
+fp = ['.' filesep 'figures' filesep];
 
 %% Calculated values
 % Calculate radius
@@ -36,10 +38,15 @@ c_f = drag_coeffs(V_r, c, const);
 
 % Define problem and variables
 prob = optimproblem("ObjectiveSense","minimize");
-order_a = 2; % Should be <= 3
+order_a = 9; % Should be <= 3
 afs = optimvar('afs', order_a + 1);
-w_bending = 10;
+w_torque = 10;
+w_bending = 0;
+w_uniform = 1;
 a_func = @(x) build_polynomial(afs, x);
+
+% Uniform loading:
+T_s = const.T_B/m;
 
 % Define objective function
 expr = optimexpr;
@@ -56,8 +63,10 @@ for i = 1:m
     dQ = (D + D_visc).* r(i);
     T = C_N .* q(i) .* c(i);
     dM_bending = T .* r(i);
+    % Any deviation from uniform loading is also penalized
+    diff_uniform = (T - T_s)^2;
     
-    expr = expr + dQ + (w_bending * dM_bending);
+    expr = expr + (w_torque * dQ) + (w_uniform * diff_uniform); % + (w_bending * dM_bending)
 end
 prob.Objective = expr;
 
@@ -84,12 +93,13 @@ clear('x0');
 x0.afs = rand(size(afs));
 
 % Solve problem
-options = optimoptions('fmincon','Display','final-detailed', 'ConstraintTolerance',1e-10);
-[sol,fval,EXITFLAG,OUTPUT,LAMBDA] = solve(prob, x0,'Solver','fmincon','Options',options);
+options = optimoptions('quadprog','Display','final', 'ConstraintTolerance',9e-9);
+[sol,fval,EXITFLAG,OUTPUT,LAMBDA] = solve(prob,'Solver','quadprog','Options',options);
 a_func = @(x) build_polynomial(sol.afs, x);
 
 %% Analyze results
 a = a_func(r);
+disp(sol.afs);
 analyze_blade(a, c, c_f, const, fs);
 
 %% Plot
@@ -109,7 +119,7 @@ plot(r_plot, rad2deg(const.a_L0)*ones(size(r_plot)), '-.b', 'LineWidth', 1)
 legend("\alpha","\alpha_{stall}","\alpha_{L0}",'Location','east','FontSize', fs);
 hold off;
 ylabel("\alpha",'FontSize', fs)
-xlabel("Blade Radius [m]", 'FontSize', fs)
+xlabel("Blade Length [m]", 'FontSize', fs)
 ylim([-5, 9]);
 xlim([0, 10]);
 
@@ -120,7 +130,7 @@ for k=1:numel(yt)
 yt1{k}=sprintf('%d°',yt(k));
 end
 set(gca,'yticklabel',yt1);
-
+set(gca,'FontSize',fs)
 grid on;
 title("Angle of Attack \alpha", 'FontSize', fs);
 
@@ -132,8 +142,8 @@ plot(r_plot, rad2deg(phi_plot), '--r', 'LineWidth', 1);
 hold off;
 legend("\beta","\phi", 'location','east', 'FontSize', fs);
 ylabel("\beta, \phi",'FontSize', fs)
-xlabel("Blade Radius [m]", 'FontSize', fs)
-ylim([-5, 25]);
+xlabel("Blade Length [m]", 'FontSize', fs)
+ylim([-5, 30]);
 xlim([0, 10]);
 
 yt=get(gca,'ytick');
@@ -142,9 +152,10 @@ for k=1:numel(yt)
 yt1{k}=sprintf('%d°',yt(k));
 end
 set(gca,'yticklabel',yt1);
-
+set(gca,'FontSize',fs)
 grid on;
 title("Section Angle \beta and Induced Angle \phi", 'FontSize', fs);
+exportgraphics(f1, strcat(fp,'angle.eps'));
 
 % Plot chord variation
 f2 = figure;
@@ -153,8 +164,11 @@ plot(r_plot, c_func(r_plot), 'LineWidth', 1);
 grid on;
 ylabel("c [m]");
 xlim([0, 10]);
-xlabel("Blade Radius [m]", 'FontSize', fs)
+ylim([0.4, 1.6]);
+xlabel("Blade Length [m]", 'FontSize', fs)
 title("Chord",'FontSize', fs);
+set(gca,'FontSize',fs)
+exportgraphics(f2, strcat(fp,'chord.eps'));
 
 blade3D(a, c, const);
 

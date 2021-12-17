@@ -1,4 +1,5 @@
 function blade3D(a, c, const)
+    fp = ['.' filesep 'figures' filesep];
     % Colors
     color_skin = [59, 126, 161]./255; % Founders rock
     %color_skin = [0 50/255 98/255]; % Berkeley blue
@@ -31,7 +32,7 @@ function blade3D(a, c, const)
     airfoil = scale(airfoil,c(1),[xc,yc]);
     %offset = airfoil.Vertices;
     %offset = max(abs(offset(:,1)));
-    figure;
+    f1 = figure;
     view(3);
     hold on;
     xlabel("x");
@@ -95,4 +96,5 @@ function blade3D(a, c, const)
     hold off;
     %view([45 - 180, 45]);
     view([-155, 16]);
+    exportgraphics(f1, strcat(fp, '3D.eps'));
 end

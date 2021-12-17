@@ -68,8 +68,8 @@ clear('x0');
 x0.a = const.a_L0 + (const.a_stall - deg2rad(1) - const.a_L0).*rand(size(a));
 
 % Solve problem
-options = optimoptions('fmincon','Display','iter-detailed','MaxFunctionEvaluations',1e+4);
-[sol,fval,EXITFLAG,OUTPUT,LAMBDA] = solve(prob, x0,'Solver','fmincon','Options',options);
+options = optimoptions('linprog','Display','iter');
+[sol,fval,EXITFLAG,OUTPUT,LAMBDA] = solve(prob, x0,'Solver','linprog','Options',options);
 a = sol.a;
 
 %% Analyze results

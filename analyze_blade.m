@@ -1,4 +1,5 @@
 function analyze_blade(a, c, c_f, const, fs)
+    fp = ['.' filesep 'figures' filesep];
     %% Calculated values
     % Calculate radius
     dr = (const.r_t - const.r_r)/(numel(a)); % Width of each blade element
@@ -51,19 +52,21 @@ function analyze_blade(a, c, c_f, const, fs)
     fprintf("Total power: %0.5f [W] %0.3f [hp]\n", P_tot, P_tot/745.7);
 
     %% Generate figures
-    f = figure;
-    f.Position = [100   300   800   600];
+    f1 = figure;
+    f1.Position = [100   300   800   600];
     tl = tiledlayout(3, 1);
     nexttile;
     plot(r, c_n, 'LineWidth', 1);
     ylabel("c_n", 'FontSize', fs);
     grid on;
+    set(gca,'FontSize',fs)
     xlim([0, 10]);
 
     nexttile;
     plot(r, c_t, "LineWidth", 1);
     ylabel("c_t", 'FontSize', fs);
     grid on;
+    set(gca,'FontSize',fs)
     xlim([0, 10]);
 
     nexttile;
@@ -71,5 +74,16 @@ function analyze_blade(a, c, c_f, const, fs)
     ylabel("c_{t,visc}", 'FontSize', fs);
     grid on;
     xlim([0, 10]);
-    xlabel(tl,"Blade Radius [m]", 'FontSize', fs);
+    xlabel(tl,"Blade Length [m]", 'FontSize', fs);
+    set(gca,'FontSize',fs)
+    exportgraphics(f1, strcat(fp,'coeffs.eps'));
+
+    %% Separate figure of loading per section
+    f2 = figure;
+    plot(r, T, 'LineWidth', 1);
+    grid on;
+    ylabel("Thrust [N]", 'FontSize',fs)
+    xlabel("Blade Length [m]", 'FontSize', fs);
+    set(gca,'FontSize',fs)
+    exportgraphics(f2, strcat(fp,'loading.eps'));
 end
