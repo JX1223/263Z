@@ -33,11 +33,13 @@ function blade3D(a, c, const)
     %offset = airfoil.Vertices;
     %offset = max(abs(offset(:,1)));
     f1 = figure;
+    f1.Position = [100        300        1200         600];
     view(3);
     hold on;
-    xlabel("x");
-    ylabel("r [m]");
-    zlabel("y");
+    xlabel("x", 'FontSize', 16);
+    ylabel("r [m]", 'FontSize', 16);
+    zlabel("y", 'FontSize', 16);
+    title("3D View", 'FontSize', 16);
     t = matlab.graphics.primitive.Transform.empty(numel(a), 0);
     fprintf(fID, "airfoil = [");
     for i = 1:numel(a)
@@ -95,6 +97,7 @@ function blade3D(a, c, const)
     grid on;
     hold off;
     %view([45 - 180, 45]);
-    view([-155, 16]);
+    %view([-155, 16]);
+    view([-145, 17]);
     exportgraphics(f1, strcat(fp, '3D.eps'));
 end

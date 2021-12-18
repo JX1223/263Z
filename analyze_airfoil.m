@@ -4,6 +4,8 @@ clc;
 close all;
 fs = 16;
 fp = ['.' filesep 'figures' filesep];
+fig_x = 1000;
+fig_y = 600;
 %% Read geometry file to get x and y coordinates
 %load("0012_199.mat"); af_name = "NACA 0012";
 %load("4412_199.mat"); af_name = "NACA 4412";
@@ -21,8 +23,9 @@ CD_all = zeros(1, numel(angles));
 
 % Create figure for plots
 f1 = figure;
-f1.Position(3:4) = [1500 500];
-tl = tiledlayout(1,3, 'TileSpacing', 'tight');
+f1.Position = [100   300   1600 600];
+
+tl = tiledlayout(1,3, 'TileSpacing', 'tight', 'Padding', 'tight');
 
 nexttile;
 hold on;
@@ -109,6 +112,9 @@ xt1{k}=sprintf('%d°',xt(k));
 end
 set(gca,'xticklabel',xt1);
 set(gca,'FontSize',fs)
+ax = gca;
+y2 = ax.YAxis(2);
+y2.Exponent = -3;
 title("C_L & C_D vs \alpha", 'FontSize', fs);
 hold off;
 

@@ -53,7 +53,7 @@ function analyze_blade(a, c, c_f, const, fs)
 
     %% Generate figures
     f1 = figure;
-    f1.Position = [100   300   800   600];
+    f1.Position = [100   300   1200   1000];
     tl = tiledlayout(3, 1);
     nexttile;
     plot(r, c_n, 'LineWidth', 1);
@@ -61,7 +61,8 @@ function analyze_blade(a, c, c_f, const, fs)
     grid on;
     set(gca,'FontSize',fs)
     xlim([0, 10]);
-
+    title("Blade Coefficients",'FontSize', 16);
+    
     nexttile;
     plot(r, c_t, "LineWidth", 1);
     ylabel("c_t", 'FontSize', fs);
@@ -74,16 +75,19 @@ function analyze_blade(a, c, c_f, const, fs)
     ylabel("c_{t,visc}", 'FontSize', fs);
     grid on;
     xlim([0, 10]);
+    ylim([3*10^(-3), 12*10^(-3)]);
     xlabel(tl,"Blade Length [m]", 'FontSize', fs);
     set(gca,'FontSize',fs)
     exportgraphics(f1, strcat(fp,'coeffs.eps'));
 
     %% Separate figure of loading per section
     f2 = figure;
+    f2.Position = [100   300   600 500];
     plot(r, T, 'LineWidth', 1);
     grid on;
     ylabel("Thrust [N]", 'FontSize',fs)
     xlabel("Blade Length [m]", 'FontSize', fs);
     set(gca,'FontSize',fs)
+    title("Blade Loading", 'FontSize', fs);
     exportgraphics(f2, strcat(fp,'loading.eps'));
 end

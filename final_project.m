@@ -12,6 +12,9 @@ m = 100; % number of blade elements
 fs = 16;
 fp = ['.' filesep 'figures' filesep];
 
+fig_x = 1000;
+fig_y = 500;
+
 %% Calculated values
 % Calculate radius
 dr = (const.r_t - const.r_r)/(m); % Width of each blade element
@@ -109,7 +112,7 @@ phi_plot = atan(const.V_h./V_t_plot);
 
 % Plot angle of attack
 f1 = figure;
-f1.Position = [100   300   1000   400];
+f1.Position = [100   300   1200 500];
 tl1 = tiledlayout(1,2,'Padding','compact');
 nexttile;
 plot(r_plot, rad2deg(a_func(r_plot)), 'LineWidth', 1);
@@ -159,7 +162,7 @@ exportgraphics(f1, strcat(fp,'angle.eps'));
 
 % Plot chord variation
 f2 = figure;
-f2.Position = [100   300   500   400];
+f2.Position = [100   300   600 500];
 plot(r_plot, c_func(r_plot), 'LineWidth', 1);
 grid on;
 ylabel("c [m]");
